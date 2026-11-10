@@ -78,8 +78,10 @@ def load_known(path, sanitizers):
                 raise ValueError(f"{location}: {test} is already listed for {name}")
             seen.add((test, name))
         if set(names) & set(sanitizers):
-            known[test] = reason
-    return known
+            reasons = known.setdefault(test, [])
+            if reason not in reasons:
+                reasons.append(reason)
+    return {test: "; ".join(reasons) for test, reasons in known.items()}
 
 
 def cell(text):

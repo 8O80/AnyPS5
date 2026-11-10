@@ -397,5 +397,15 @@ class SummaryInputAliasTests(unittest.TestCase):
 
 
 
+class KnownReasonRegressionTests(unittest.TestCase):
+    def test_combined_sanitizers_keep_each_distinct_reason(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "known.txt"
+            path.write_text("sample address stack switch\nsample undefined alignment\nsample thread stack switch\n", encoding="utf-8")
+            self.assertEqual(sanitizer_report.load_known(path, ["address", "undefined", "thread"]),
+                             {"sample": "stack switch; alignment"})
+            self.assertEqual(sanitizer_report.load_known(path, ["undefined"]), {"sample": "alignment"})
+
+
 if __name__ == "__main__":
     unittest.main()
