@@ -397,5 +397,27 @@ class SummaryInputAliasTests(unittest.TestCase):
 
 
 
+class FailureDiagnosticRegressionTests(unittest.TestCase):
+    def test_failure_and_error_diagnostics_are_reported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "report.xml"
+            for tag in ("failure", "error"):
+                for body in ('message="ERROR: AddressSanitizer: buffer overflow"/>',
+                             '>SUMMARY: UndefinedBehaviorSanitizer: misaligned access</' + tag + '>'):
+                    with self.subTest(tag=tag, body=body):
+                        path.write_text('<testsuite><testcase name="sample"><' + tag + ' ' + body +
+                                        '</testcase></testsuite>', encoding="utf-8")
+                        reports = sanitizer_report.reports(path)
+                        self.assertIn("Sanitizer:", reports.get("sample", ""))
+                        self.assertEqual(sanitizer_report.results(path)["sample"], "failed")
+
+    def test_output_stream_diagnostic_has_priority(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "report.xml"
+            path.write_text('<testsuite><testcase name="sample"><failure message="SUMMARY: AddressSanitizer: secondary"/>'
+                            '<system-out>ERROR: AddressSanitizer: primary</system-out></testcase></testsuite>', encoding="utf-8")
+            self.assertEqual(sanitizer_report.reports(path), {"sample": "ERROR: AddressSanitizer: primary"})
+
+
 if __name__ == "__main__":
     unittest.main()
