@@ -179,6 +179,12 @@ def compare(baseline, candidate):
             "metrics_ms": metrics, "top_phases_ms_per_frame": phases, "worker_busy_pct": workers, "notes": notes}
 
 
+def require_clean_builds(report):
+    for label in ("baseline", "candidate"):
+        if report[label]["dirty"] is not False:
+            raise ValueError(f"{label}: a recorded clean build is required (dirty must be false)")
+
+
 def cell(value):
     text = json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("|", "&#124;").replace("\r", " ").replace("\n", " ")
@@ -220,10 +226,14 @@ def main(argv=None):
                         help="reject differences in recorded configuration, including optional machine/title metadata; scene identity is not checked")
     parser.add_argument("--baseline-trace", help="Exact trace field to select in the baseline file")
     parser.add_argument("--candidate-trace", help="Exact trace field to select in the candidate file")
+    parser.add_argument("--require-clean-builds", action="store_true",
+                        help="require both captures to record dirty=false; unknown build states are rejected")
     parser.add_argument("--json", action="store_true", help="Write JSON instead of Markdown")
     args = parser.parse_args(argv)
     try:
         report = compare(load_summary(args.baseline, args.baseline_trace), load_summary(args.candidate, args.candidate_trace))
+        if args.require_clean_builds:
+            require_clean_builds(report)
         if args.require_matching_context and report["configuration_differences"]:
             raise ValueError("recorded configuration differs: " + ", ".join(report["configuration_differences"]))
         if args.json:
