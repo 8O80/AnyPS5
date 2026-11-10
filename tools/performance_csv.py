@@ -56,6 +56,8 @@ def main(argv=None):
     parser.add_argument("--baseline-trace", help="exact trace field to select in the baseline JSONL")
     parser.add_argument("--candidate-trace", help="exact trace field to select in the candidate JSONL")
     parser.add_argument("--require-matching-context", action="store_true")
+    parser.add_argument("--require-clean-builds", action="store_true",
+                        help="require both captures to record dirty=false; unknown build states are rejected")
     parser.add_argument("--spreadsheet-safe", action="store_true",
                         help="opt-in tab prefix changes text cells; spreadsheet behavior varies and save/reopen not guaranteed")
     args = parser.parse_args(argv)
@@ -63,6 +65,8 @@ def main(argv=None):
         baseline = performance_compare.load_summary(args.baseline, args.baseline_trace)
         candidate = performance_compare.load_summary(args.candidate, args.candidate_trace)
         report = performance_compare.compare(baseline, candidate)
+        if args.require_clean_builds:
+            performance_compare.require_clean_builds(report)
         if args.require_matching_context and report["configuration_differences"]:
             raise ValueError("recorded configuration differs: " + ", ".join(report["configuration_differences"]))
         output = render_csv(report, spreadsheet_safe=args.spreadsheet_safe)

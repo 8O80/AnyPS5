@@ -601,5 +601,30 @@ class PerformanceCompareTests(unittest.TestCase):
         self.assertEqual(err.errors, "backslashreplace")
 
 
+class CleanBuildCliTests(unittest.TestCase):
+    def test_clean_build_requirement_is_opt_in_for_both_commands(self):
+        with tempfile.TemporaryDirectory() as directory:
+            before, after = Path(directory) / "before.jsonl", Path(directory) / "after.jsonl"
+            for tool, options in (("performance_compare.py", []), ("performance_compare.py", ["--json"]),
+                                  ("performance_csv.py", [])):
+                for dirty in (False, True, None):
+                    for label in ("baseline", "candidate"):
+                        with self.subTest(tool=tool, options=options, dirty=dirty, label=label):
+                            baseline, candidate = copy.deepcopy(SUMMARY), copy.deepcopy(SUMMARY)
+                            (baseline if label == "baseline" else candidate)["dirty"] = dirty
+                            before.write_text(json.dumps(baseline), encoding="utf-8")
+                            after.write_text(json.dumps(candidate), encoding="utf-8")
+                            command = [sys.executable, str(Path(performance_compare.__file__).with_name(tool)),
+                                       str(before), str(after), *options]
+                            ordinary = subprocess.run(command, capture_output=True, timeout=5)
+                            self.assertEqual(ordinary.returncode, 0, ordinary.stderr)
+                            strict = subprocess.run([*command, "--require-clean-builds"], capture_output=True, timeout=5)
+                            self.assertEqual(strict.returncode, 0 if dirty is False else 2, strict.stderr)
+                            if dirty is not False:
+                                self.assertEqual(strict.stdout, b"")
+                                self.assertIn(label.encode(), strict.stderr)
+                                self.assertNotIn(b"Traceback", strict.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
