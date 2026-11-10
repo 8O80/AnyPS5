@@ -201,5 +201,24 @@ class ReportTests(unittest.TestCase):
         self.assertIn("no debt file: libSceMissing", errors.getvalue())
 
 
+class LabelFilterRegressionTests(unittest.TestCase):
+    def test_unknown_label_is_rejected_before_scanning(self):
+        output, errors = io.StringIO(), io.StringIO()
+        with mock.patch.object(debt_report, "report") as scan:
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+                with self.assertRaises(SystemExit) as caught:
+                    debt_report.main(["--label", "windwos", "--json"])
+            self.assertEqual(caught.exception.code, 2)
+            scan.assert_not_called()
+        self.assertEqual(output.getvalue(), "")
+        self.assertIn("windwos", errors.getvalue())
+
+    def test_stale_and_repeated_valid_filters_are_accepted(self):
+        output = io.StringIO()
+        with mock.patch.object(debt_report, "report", return_value=[]), contextlib.redirect_stdout(output):
+            self.assertEqual(debt_report.main(["--label", "stale?", "--label", "windows", "--json"]), 0)
+        self.assertEqual(json.loads(output.getvalue()), [])
+
+
 if __name__ == "__main__":
     unittest.main()
