@@ -56,7 +56,12 @@ def reports(path):
     found = {}
     for case in ET.parse(path).getroot().iter("testcase"):
         output = "\n".join(case.findtext(channel) or "" for channel in ("system-out", "system-err"))
-        if report := first_report(output):
+        report = first_report(output)
+        if not report:
+            diagnostics = [text for tag in ("failure", "error") for element in case.findall(tag)
+                           for text in (element.get("message", ""), "".join(element.itertext()))]
+            report = first_report("\n".join(diagnostics))
+        if report:
             found[case.get("name")] = report
     return found
 
